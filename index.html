@@ -401,6 +401,7 @@
     <p class="sub">No pressure, no pitch-fest — just an honest, structured look at what you're carrying forward.</p>
     <div class="price-block"><span class="cur">₹</span><span class="num">99</span><span class="per">/ one seat</span></div>
     <p class="final-meta">Live on <strong id="webinar-date-2">26 July 2026</strong> · <span id="webinar-time-2">4:00 PM IST</span> · Joining link sent after payment</p>
+    <p class="final-meta">Didn't receive your confirmation or joining link? Email <a href="mailto:info.nxtory@gmail.com" style="color:var(--ink-deep); text-decoration:underline;">info.nxtory@gmail.com</a></p>
     <div id="razorpay-button-container">
       <a href="#" class="btn-primary" onclick="openForm();return false;">Reserve your seat — ₹99 →</a>
     </div>
@@ -408,7 +409,7 @@
 </section>
 
 <footer>
-  <div class="wrap">Beyond the Exam — a one-hour session for UPSC aspirants. Questions? Reach out after registering.</div>
+  <div class="wrap">Beyond the Exam — a one-hour session for UPSC aspirants. Questions? Email <a href="mailto:info.nxtory@gmail.com" style="text-decoration:underline;">info.nxtory@gmail.com</a>.</div>
 </footer>
 
 <!-- REGISTRATION MODAL -->
@@ -591,20 +592,37 @@
     const email  = document.getElementById('f-email').value.trim();
     const mobile = '+91' + document.getElementById('f-mobile').value.trim();
 
-    // Send to Google Apps Script (non-blocking — if it fails we still redirect)
+    // Ask Apps Script to log the registrant and create a payment link
+    // that's tagged to this exact row, so payment confirmation can
+    // match back to this registrant with certainty. Falls back to the
+    // shared RAZORPAY_LINK if anything here fails, so registration
+    // never gets stuck.
+    let paymentUrl = RAZORPAY_LINK;
+
     if(APPS_SCRIPT_URL){
       try{
-        await fetch(APPS_SCRIPT_URL, {
+        const controller = new AbortController();
+        const timeoutId  = setTimeout(() => controller.abort(), 6000);
+
+        // text/plain avoids a CORS preflight (which Apps Script doesn't
+        // handle) so we can actually read the JSON response back.
+        const res = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
-          mode: 'no-cors', // Apps Script requires no-cors
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ name, email, mobile,
             timestamp: new Date().toISOString(),
             paymentStatus: 'Pending'
-          })
+          }),
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
+
+        const data = await res.json();
+        if(data.paymentUrl){
+          paymentUrl = data.paymentUrl;
+        }
       } catch(e){
-        console.log('Sheet log failed silently:', e);
+        console.log('Registrant link creation failed, using shared link:', e);
       }
     }
 
@@ -613,7 +631,7 @@
     document.getElementById('modalSuccess').style.display = 'block';
 
     setTimeout(() => {
-      window.location.href = RAZORPAY_LINK;
+      window.location.href = paymentUrl;
     }, 1200);
   }
 </script>
