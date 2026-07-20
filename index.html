@@ -460,8 +460,48 @@
 
 <script>
   const RAZORPAY_LINK = "https://razorpay.me/@niveditha3416?amount=CVDUr6Uxp2FOGZGwAHntNg%3D%3D";
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyVFCzxyE8pV-fi4qFsNZ5F4kdfay6Aiu7GL9nPBhgqfcRNpFrS-_DkUGtW5ScbcWIB/exec";
-  const SHEET_CSV_URL = ""; // <-- fill in during setup
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyoObW0tFGlRy81hngYahchGIhamFAD22V61Xs-A1NugTlYLxyC1elNFVwdzkZDDc4E/exec";
+  const SHEET_CSV_URL = "";
+  const MAX_SEATS = 98;
+
+  /* ---- Check seat availability on page load ---- */
+  async function checkSeats(){
+    try{
+      const res  = await fetch(APPS_SCRIPT_URL + '?action=seats');
+      const data = await res.json();
+      if(data.full){
+        closedMode();
+      } else if(data.remaining <= 20){
+        // Show urgency when under 20 seats left
+        document.querySelectorAll('.seats-note').forEach(el => {
+          el.textContent = '⚠️ Only ' + data.remaining + ' seats left!';
+          el.style.color = 'var(--terracotta)';
+          el.style.fontWeight = '600';
+        });
+      }
+    } catch(e){
+      console.log('Seat check failed silently:', e);
+      // Fail open — let people register if check fails
+    }
+  }
+
+  function closedMode(){
+    // Update all three buttons to show closed state
+    document.querySelectorAll('.btn-primary, .nav-cta').forEach(btn => {
+      btn.textContent = 'Registration Closed';
+      btn.style.background = 'var(--text-soft)';
+      btn.style.pointerEvents = 'none';
+      btn.style.opacity = '0.7';
+      btn.onclick = null;
+    });
+    document.querySelectorAll('.seats-note').forEach(el => {
+      el.textContent = 'All 98 seats are filled. Registration is now closed.';
+      el.style.color = 'var(--terracotta)';
+      el.style.fontWeight = '600';
+    });
+  }
+
+  checkSeats();
 
   /* ---- Date/time from Sheet ---- */
   async function loadDateFromSheet(){
